@@ -27,9 +27,10 @@ class tile_img:
         patch_shape = (patch_dim, patch_dim, 3)
         patches = self.patchify(arr, patch_shape, step=int(patch_dim*step_size))
 
-        img_patches = [patches[i,j,0,:,:,:] for i in range(patches.shape[0]) for j in range(patches.shape[1])]
+        img_patches = [patches[i, j] for i in range(patches.shape[0]) for j in range(patches.shape[1])]
 
         return np.array(img_patches), self
+
 
     def patchify(self, arr, patch_shape, step):
         patches = []
@@ -41,13 +42,18 @@ class tile_img:
 
     def save_tiff(self, patches, output_path):
         driver = gdal.GetDriverByName("GTiff")
-        dataset = driver.Create(output_path, self.w, self.h, 3, gdal.GDT_Byte)
+        if patches.ndim == 2:
+            # If patches represent a single image (height, width, bands)
+            dataset = driver.Create(output_path, patches.shape[1], patches.shape[0], 3, gdal.GDT_Byte)
+            dataset.GetRasterBand(1).WriteArray(patches)
+        elif patches.ndim == 3:
+            # If patches are in the shape (patches, height, width, bands)
+            raise ValueError("Patches should be in the shape (height, width, bands).")
+        else:
+            raise ValueError("Unsupported array dimensionality.")
 
         dataset.SetGeoTransform(self.get_geotransform())
         dataset.SetProjection(self.get_projection())
-
-        for i, patch in enumerate(patches):
-            dataset.GetRasterBand(i+1).WriteArray(patch)
 
         dataset.FlushCache()
         dataset = None
@@ -65,3 +71,22 @@ class tile_img:
         projection = src_ds.GetProjection()
         src_ds = None
         return projection
+
+data = 'padat-01-cropped1-15cm.tif'
+out = 'tile'
+
+# Instantiate tile_img object with the input TIFF file
+tile = tile_img(data)
+
+# Define patch parameters
+patch_dim = 320
+step_size = 1
+resize = None  # No resizing for this example
+
+# Generate patches
+patches, _ = tile.patchData(patch_dim, step_size, resize)
+
+# Save patches as TIFF files with original GeoTransform and CRS
+for i, patch in enumerate(patches):
+    patch_output_path = f'{out}/patch_{i}.tif'
+    tile.save_tiff(patch, patch_output_path)
