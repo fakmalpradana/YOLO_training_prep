@@ -1,92 +1,77 @@
-import cv2
+# from PIL import Image
+# import os
+# import numpy as np
+
+# def split_image(image_path, output_folder):
+#     image = Image.open(image_path)
+#     width, height = image.size
+#     section_size = 320
+    
+#     if not os.path.exists(output_folder):
+#         os.makedirs(output_folder)
+
+#     for i in range(0, width, section_size):
+#         for j in range(0, height, section_size):
+#             section = image.crop((i, j, i + section_size, j + section_size))
+#             section_width, section_height = section.size
+#             if section_width == section_height == section_size:
+#                 section.save(f"{output_folder}/section_{np.int8(i/320)}_{np.int8(j/320)}.png")
+
+# if __name__ == "__main__":
+#     image_path = "padat-01-cropped1-15cm.tif"  # Replace with your TIFF image path
+#     output_folder = "tile"  # Folder to save the sections
+    
+#     split_image(image_path, output_folder)
+#     print("Image sections saved successfully.")
+
+import os
 import numpy as np
-from osgeo import gdal, osr
+import rasterio
+from rasterio.transform import from_origin
+from PIL import Image
 
-class tile_img:
-    def __init__(self, img_path:str):
-        if not img_path.endswith('tif'):
-            raise ValueError("Input image must be in TIFF format.")
+def get_transform(image_path):
+    with rasterio.open(image_path) as src:
+        transform = src.transform
+        crs = src.crs
+        return transform, crs
 
-        self.img_path = img_path
-        self.img = cv2.imread(img_path)
-        self.h0, self.w0, _ = self.img.shape
+def remove_alpha_channel(image):
+    if image.mode == "RGBA":
+        return image.convert("RGB")
+    else:
+        return image
 
-        self.dim = [320*((self.h0//320)+1), 320*((self.w0//320)+1)]
-        self.h, self.w = self.dim
+def split_image(image_path, output_folder):
+    image = Image.open(image_path)
+    image = remove_alpha_channel(image)
+    width, height = image.size
+    section_size = 320
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
-    def patchData(self, patch_dim:int, step_size:float, resize:int=None):
-        img = cv2.resize(self.img, (self.w//resize, self.h//resize)) if resize else self.img
+    transform, crs = get_transform(image_path)
+    x_origin, y_origin = transform[2], transform[5]
 
-        ch1 = np.ceil(self.h/patch_dim).astype(int)
-        ch2 = np.ceil(self.w/patch_dim).astype(int)
+    for i in range(0, width, section_size):
+        for j in range(0, height, section_size):
+            section = image.crop((i, j, i + section_size, j + section_size))
+            section_width, section_height = section.size
+            if section_width == section_height == section_size:
+                # Create a new TIFF file for each section
+                filename = f"section_{np.int8(i/section_size)}_{np.int8(j/section_size)}.tif"
+                with rasterio.open(os.path.join(output_folder, filename), 'w', driver='GTiff', 
+                                    width=section_size, height=section_size, count=3, dtype=np.uint8,
+                                    crs=crs, transform=from_origin(x_origin + i * transform[0], 
+                                    y_origin - j * transform[4], transform[0], transform[4])) as dst:
+                    # Convert PIL image to NumPy array properly
+                    np_section = np.array(section)
+                    dst.write(np.moveaxis(np_section, [0,1,2], [1,2,0]))
 
-        arr0 = np.zeros((ch1*patch_dim, ch2*patch_dim, 3), dtype=np.uint8)
-        arr0[:self.h0, :self.w0] += img
-        arr = arr0.astype(np.uint8)
-
-        patch_shape = (patch_dim, patch_dim, 3)
-        patches = self.patchify(arr, patch_shape, step=int(patch_dim*step_size))
-
-        img_patches = [patches[i, j] for i in range(patches.shape[0]) for j in range(patches.shape[1])]
-
-        return np.array(img_patches), self
-
-
-    def patchify(self, arr, patch_shape, step):
-        patches = []
-        for i in range(0, arr.shape[0] - patch_shape[0] + 1, step):
-            for j in range(0, arr.shape[1] - patch_shape[1] + 1, step):
-                patch = arr[i:i+patch_shape[0], j:j+patch_shape[1]]
-                patches.append(patch.reshape((1,) + patch_shape))
-        return np.vstack(patches)
-
-    def save_tiff(self, patches, output_path):
-        driver = gdal.GetDriverByName("GTiff")
-        if patches.ndim == 2:
-            # If patches represent a single image (height, width, bands)
-            dataset = driver.Create(output_path, patches.shape[1], patches.shape[0], 3, gdal.GDT_Byte)
-            dataset.GetRasterBand(1).WriteArray(patches)
-        elif patches.ndim == 3:
-            # If patches are in the shape (patches, height, width, bands)
-            raise ValueError("Patches should be in the shape (height, width, bands).")
-        else:
-            raise ValueError("Unsupported array dimensionality.")
-
-        dataset.SetGeoTransform(self.get_geotransform())
-        dataset.SetProjection(self.get_projection())
-
-        dataset.FlushCache()
-        dataset = None
-
-    def get_geotransform(self):
-        # Get the geotransform from the original image
-        src_ds = gdal.Open(self.img_path)
-        geotransform = src_ds.GetGeoTransform()
-        src_ds = None
-        return geotransform
-
-    def get_projection(self):
-        # Get the projection from the original image
-        src_ds = gdal.Open(self.img_path)
-        projection = src_ds.GetProjection()
-        src_ds = None
-        return projection
-
-data = 'padat-01-cropped1-15cm.tif'
-out = 'tile'
-
-# Instantiate tile_img object with the input TIFF file
-tile = tile_img(data)
-
-# Define patch parameters
-patch_dim = 320
-step_size = 1
-resize = None  # No resizing for this example
-
-# Generate patches
-patches, _ = tile.patchData(patch_dim, step_size, resize)
-
-# Save patches as TIFF files with original GeoTransform and CRS
-for i, patch in enumerate(patches):
-    patch_output_path = f'{out}/patch_{i}.tif'
-    tile.save_tiff(patch, patch_output_path)
+if __name__ == "__main__":
+    image_path = "padat-01-cropped1-15cm.tif"  # Replace with your TIFF image path
+    output_folder = "tile"  # Folder to save the sections
+    
+    split_image(image_path, output_folder)
+    print("Image sections saved successfully.")
