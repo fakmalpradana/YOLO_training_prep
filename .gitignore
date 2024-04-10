@@ -1,3 +1,4 @@
 
 *.tif
 *.xml
+/shp_tile
