@@ -5,9 +5,9 @@ from shapely.geometry import box, Polygon
 import os
 
 # Input paths
-shapefile_path = 'Progress/clipped_digitasi01/sample.shp'
-raster_folder = 'Progress/clipped_digitasi01/ortho'
-output_folder = 'Progress/clipped_digitasi01/clipped_shapefiles'
+shapefile_path = 'shp/sample.shp'
+raster_folder = 'tile'
+output_folder = 'shp_tile'
 
 # Read the vector shapefile
 gdf = gpd.read_file(shapefile_path)
