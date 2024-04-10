@@ -64,10 +64,12 @@ def split_image(image_path, output_folder):
                 with rasterio.open(os.path.join(output_folder, filename), 'w', driver='GTiff', 
                                     width=section_size, height=section_size, count=3, dtype=np.uint8,
                                     crs=crs, transform=from_origin(x_origin + i * transform[0], 
-                                    y_origin - j * transform[4], transform[0], transform[4])) as dst:
+                                    y_origin + (j-320) * transform[4] + section_size * transform[4], 
+                                    transform[0], -transform[4])) as dst:
                     # Convert PIL image to NumPy array properly
                     np_section = np.array(section)
                     dst.write(np.moveaxis(np_section, [0,1,2], [1,2,0]))
+
 
 if __name__ == "__main__":
     image_path = "padat-01-cropped1-15cm.tif"  # Replace with your TIFF image path
