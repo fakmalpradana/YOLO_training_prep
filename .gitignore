@@ -2,3 +2,5 @@
 *.tif
 *.xml
 /shp_tile
+/coco
+/yolo_txt
