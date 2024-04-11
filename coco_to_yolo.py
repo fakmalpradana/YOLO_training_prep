@@ -1,3 +1,4 @@
+import os
 import json
 
 def coco_to_yolov8_segmentation(coco_json_path, output_txt_path, class_mapping):
@@ -42,13 +43,26 @@ def coco_to_yolov8_segmentation(coco_json_path, output_txt_path, class_mapping):
             # Write YOLOv8 format to the output file
             out_file.write(segment_line.strip() + "\n")
 
-if __name__ == "__main__":
-    coco_json_path = "Progress/padat-01-15cm.json"
-    output_txt_path = "Progress/yolo-txt/padat-01-15cm.txt"
+def process_folder(input_folder, output_folder):
+    # Ensure output folder exists, create it if it doesn't
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     # Define the mapping of COCO class IDs to YOLOv8 class IDs
     class_mapping = {
         1: 0,  # Map COCO class ID 1 to YOLOv8 class ID 0
     }
 
-    coco_to_yolov8_segmentation(coco_json_path, output_txt_path, class_mapping)
+    # Iterate through all files in the input folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith('.json'):
+            input_file_path = os.path.join(input_folder, filename)
+            output_file_path = os.path.join(output_folder, filename.split('.')[0] + '.txt')
+
+            coco_to_yolov8_segmentation(input_file_path, output_file_path, class_mapping)
+
+if __name__ == "__main__":
+    input_folder = "coco"
+    output_folder = "yolo_txt"
+
+    process_folder(input_folder, output_folder)

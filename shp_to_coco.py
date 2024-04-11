@@ -3,7 +3,8 @@ import geopandas as gpd
 import rasterio
 from rasterio.mask import mask
 from shapely.geometry import box, mapping, Polygon, MultiPolygon
-from tqdm import tqdm
+from tqdm.auto import tqdm
+from time import sleep
 import json
 
 # Function to shift coordinates to origin
@@ -106,16 +107,10 @@ if __name__ == "__main__":
     #         a = Predict(img=i, model=MODEL).to_json(i.replace('png','json'), TIPE)
     #         pbar.update(1)
 
-    with tqdm(total=len(raster_files), desc='Proses konversi', position=0, leave=True) as pbar:
+    with tqdm(total=len(raster_files), desc='Proses konversi', position=0, leave=True,) as pbar:
         for i in raster_files:
             raster_path = os.path.join(raster_folder, i)
             shapefile_path = os.path.join(shapefile_folder, os.path.splitext(i)[0] + '_clipped.shp')
-
-    # # Iterate over raster files
-    # for raster_file in tqdm(raster_files, desc='Processing...'):
-    #     # Construct the paths for the current raster and corresponding shapefile
-    #     raster_path = os.path.join(raster_folder, raster_file)
-    #     shapefile_path = os.path.join(shapefile_folder, os.path.splitext(raster_file)[0] + '_clipped.shp')
 
             # Read the raster file to extract extent, width, and height
             with rasterio.open(raster_path) as src:
@@ -128,5 +123,7 @@ if __name__ == "__main__":
             shp_to_coco(shapefile_path, i, extent, width, height, output_json_path)
 
             pbar.update(1)
+            sleep(0.01)
+            
 
 print("Batch processing completed!")
