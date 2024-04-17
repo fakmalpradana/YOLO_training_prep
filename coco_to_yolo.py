@@ -57,7 +57,8 @@ def process_folder(input_folder, output_folder):
     for filename in os.listdir(input_folder):
         if filename.endswith('.json'):
             input_file_path = os.path.join(input_folder, filename)
-            output_file_path = os.path.join(output_folder, filename.split('.')[0] + '.txt')
+            name = filename.split('.')[0]
+            output_file_path = os.path.join(output_folder, name.replace('_coco', '') + '.txt')
 
             coco_to_yolov8_segmentation(input_file_path, output_file_path, class_mapping)
 
