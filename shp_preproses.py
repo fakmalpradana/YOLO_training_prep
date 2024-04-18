@@ -5,7 +5,7 @@ from shapely.geometry import box, Polygon
 import os
 
 # Input paths
-shapefile_path = 'shp/sample.shp'
+shapefile_path = 'shp/Kav2.shp'
 raster_folder = 'tile'
 output_folder = 'shp_tile'
 

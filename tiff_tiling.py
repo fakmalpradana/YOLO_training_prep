@@ -46,7 +46,7 @@ def split_image(image_path, output_folder):
     image = Image.open(image_path)
     image = remove_alpha_channel(image)
     width, height = image.size
-    section_size = 320
+    section_size = 320 # maksimal 640 px
     
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -72,7 +72,7 @@ def split_image(image_path, output_folder):
 
 
 if __name__ == "__main__":
-    image_path = "padat-01-cropped1-15cm.tif"  # Replace with your TIFF image path
+    image_path = "ortho_Kav2_15cm.tif"  # Replace with your TIFF image path
     output_folder = "tile"  # Folder to save the sections
     
     split_image(image_path, output_folder)
