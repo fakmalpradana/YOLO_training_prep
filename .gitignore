@@ -1,5 +1,4 @@
 
-*.tif
 *.xml
 /shp_tile
 /coco
